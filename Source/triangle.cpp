@@ -8,11 +8,52 @@
 #include <glut/glut.h>          // OS X version of GLUT
 #else
 #define FREEGLUT_STATIC
-#include <GL/glut.h>            // Windows FreeGlut equivalent
+#include <glut.h>            // Windows FreeGlut equivalent
 #endif
 
 
 GLuint shader;
+
+GLint MVPMatrixLocation;
+
+void RenderPyramid()
+{
+
+	float side = 1.f;
+	// render base
+	glFrontFace(GL_CW);
+	glBegin(GL_QUADS);
+		glColor3f(0.5f, 0.5f, 0.5f);
+		
+		glVertex3f(-side, side, 0);
+		glVertex3f(side, side, 0);
+		glVertex3f(side, -side, 0);
+		glVertex3f(-side, -side, 0);
+	glEnd();
+
+	// render walls
+	for (int i = 0; i < 4; i++)
+	{
+		if (i == 0)
+			glColor3f(1.0f, 0.0f, 0.0f);
+		if (i == 1)
+			glColor3f(0.0f, 1.0f, 0.0f);
+		if (i == 2)
+			glColor3f(0.0f, 0.0f, .5f);
+		if (i == 3)
+			glColor3f(1.0f, 1.0f, 0.0f);
+
+		glRotatef(90.0f, 0.0f, 0.0f, 1.0f);		
+
+		glBegin(GL_TRIANGLES);
+			glVertex3f(-1.0f, -1.0f, 0.0f);
+			glVertex3f(0.0f, 0.0f, 2.0f);
+			glVertex3f(1.0f, -1.0f, 0.0f);
+		glEnd();
+	}
+}
+
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Window has changed size, or has just been created. In either case, we need
@@ -20,6 +61,10 @@ GLuint shader;
 
 void ChangeSize(int w, int h) {
     glViewport(0, 0, w, h);
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective (50.0, (float)w/(float)h, 0.1f, 1000);
 }
 
 
@@ -35,25 +80,43 @@ void SetupRC() {
             2, GLT_ATTRIBUTE_VERTEX, "vVertex", GLT_ATTRIBUTE_COLOR, "vColor");
     fprintf(stdout, "GLT_ATTRIBUTE_VERTEX : %d\nGLT_ATTRIBUTE_COLOR : %d \n",
             GLT_ATTRIBUTE_VERTEX, GLT_ATTRIBUTE_COLOR);
-
+	MVPMatrixLocation=glGetUniformLocation(shader,"MVPMatrix");
+	if(MVPMatrixLocation==-1)
+	{
+		fprintf(stderr,"uniform MVPMatrix could not be found\n");
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Called to draw scene
-
 void RenderScene(void) {
     // Clear the window with current clearing color
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+	glEnable(GL_CULL_FACE);
+	glMatrixMode (GL_MODELVIEW);
+	glLoadIdentity();
+	gluLookAt(5, 5, 5,
+			  0, 0, 0, 
+			  0, 0, 1); 
 
-   
+	
     glUseProgram(shader);
 
-    glBegin(GL_TRIANGLES);
-    glVertexAttrib3f(GLT_ATTRIBUTE_COLOR, 1.0, 0.0, 0.0);
-    glVertex3f(-0.5f, 0.0f, 2.0f);
-    glVertex3f(0.5f, 0.0f, 1.0);
-    glVertex3f(0.0f, 0.5f, -4.0f);
-    glEnd();
+	RenderPyramid();
+
+    GLfloat matrix[16];
+    glGetFloatv (GL_MODELVIEW_MATRIX, matrix);
+
+	glUniformMatrix4fv(MVPMatrixLocation, 1, GL_FALSE, matrix);
+
+	
+
+    /*glBegin(GL_TRIANGLES);
+		glVertexAttrib3f(GLT_ATTRIBUTE_COLOR, 1.0, 0.0, 0.0);
+		glVertex3f(-0.5f, 0.0f, 2.0f);
+		glVertex3f(0.5f, 0.0f, 1.0);
+		glVertex3f(0.0f, 0.5f, -4.0f);
+    glEnd();*/
 
     // Perform the buffer swap to display back buffer
     glutSwapBuffers();

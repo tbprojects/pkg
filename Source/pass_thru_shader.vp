@@ -3,10 +3,12 @@
 in vec4 vVertex;
 in vec4 vColor;
 
+uniform mat4x4 MVPMatrix;
 
 out vec4 vVaryingColor;
 
 void main() {
     vVaryingColor = vColor;
-    gl_Position = vVertex;
+    //gl_Position = vVertex;
+	gl_Position = MVPMatrix*vVertex;
 }
