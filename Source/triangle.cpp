@@ -2,6 +2,7 @@
 #include <GLFrame.h>
 #include <GLFrustum.h>
 #include <StopWatch.h>
+#include <GLMatrixStack.h>
 
 #ifdef __APPLE__
 #include <glut/glut.h>          // OS X version of GLUT
@@ -151,12 +152,38 @@ void RenderSingleTransformedPyramid(M3DVector3f translation, float rotationAngle
 	if (modelViewProjectionMatrix != NULL)
 	{
 		glUniformMatrix4fv(MVPMatrixLocation, 1, GL_FALSE, modelViewProjectionMatrix);
-
 	}
 
 	RenderPyramid();
 }
 
+void RenderSingleTransformedPyramidWithStack(M3DVector3f translation, float rotationAngle, M3DVector3f rotationAxis, M3DVector3f scale)
+{
+	GLMatrixStack matrixStack;
+	matrixStack.PushMatrix(viewProjectionMatrix);
+
+	if (translation != NULL)
+	{
+		matrixStack.Translate(translation[0],translation[1],translation[2]);
+	}
+
+	if (rotationAxis != NULL)
+	{
+		matrixStack.Rotate(rotationAngle,rotationAxis[0],rotationAxis[1],rotationAxis[2]);
+	}
+
+	if (scale != NULL)
+	{
+		matrixStack.Scale(scale[0],scale[1],scale[2]);
+	}
+
+	if (modelViewProjectionMatrix != NULL)
+	{
+		glUniformMatrix4fv(MVPMatrixLocation, 1, GL_FALSE, matrixStack.GetMatrix());
+	}
+
+	RenderPyramid();
+}
 
 void RenderPyramidsTransformed()
 {
@@ -172,6 +199,22 @@ void RenderPyramidsTransformed()
 	translationVector[0] = -5;
 	M3DVector3f rotationAxisVector = { 0, 0, 1 };
 	RenderSingleTransformedPyramid( translationVector, 45, rotationAxisVector, NULL );
+}
+
+void RenderPyramidsTransformedWithStack()
+{
+	// translated
+	M3DVector3f translationVector = { 5, 0, 0 };
+	RenderSingleTransformedPyramidWithStack( translationVector, 0, NULL, NULL );
+
+	// scaled
+	M3DVector3f scaleVector = { 1, 1, 3 };
+	RenderSingleTransformedPyramidWithStack( NULL, 0, NULL, scaleVector );
+
+	// rotated
+	translationVector[0] = -5;
+	M3DVector3f rotationAxisVector = { 0, 0, 1 };
+	RenderSingleTransformedPyramidWithStack( translationVector, 45, rotationAxisVector, NULL );
 }
 
 
@@ -295,7 +338,7 @@ void UpdateViewProjectionMatrix() {
 
 void RenderScene(void) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-	
+	glEnable(GL_CULL_FACE);
     glUseProgram(shader);
 
 	AnimateCamera();
@@ -307,13 +350,16 @@ void RenderScene(void) {
 	glUniformMatrix4fv(MVPMatrixLocation, 1, GL_FALSE, viewProjectionMatrix);
 
 
+	glCullFace(GL_BACK);
+
 // ======= ACTUAL RENDERING =========	
 	RenderGrid();
 
 	//RenderPyramid();
-	RenderPyramidsTransformed();
-	
+	//RenderPyramidsTransformed();	
 
+	//RenderPyramidWithStack();
+	RenderPyramidsTransformedWithStack();
 
 // ==== COMMIT RENDER TO SCREEN =====
     glutSwapBuffers();
@@ -330,7 +376,7 @@ int main(int argc, char* argv[]) {
 
 	SetupViewFrustum(screenWidth, screenHeight);
 
-    glutCreateWindow("Triangle");
+    glutCreateWindow("GPU Programming");
     glutReshapeFunc(ChangeSize);
     glutDisplayFunc(RenderScene);
 
@@ -341,7 +387,6 @@ int main(int argc, char* argv[]) {
     }
 
     SetupRC();
-
 
     glutMainLoop();
     return 0;
