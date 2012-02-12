@@ -34,6 +34,13 @@ float g_rotationSpeed = 1.0f;
 float g_pyramidRotationAngle = 0;
 
 
+float gridStartX = -10;
+float gridEndX = 10;
+float gridStartY = -10;
+float gridEndY = 10;
+float gridSpace = 1;
+
+
 void RenderGround()
 {
 	glFrontFace(GL_CCW);
@@ -102,6 +109,28 @@ void RenderPyramid()
 	glEnd();
 }
 
+
+void RenderGrid()
+{
+	glVertexAttrib4f(GLT_ATTRIBUTE_COLOR, 0.9, 0.9, 0.9, 1.0);	
+
+	for (int x = gridStartX; x <= gridEndX; x += gridSpace)
+	{
+		glBegin(GL_LINES);
+			glVertex3f(x, gridStartY, 0);
+			glVertex3f(x, gridEndY, 0);
+		glEnd();
+	}	
+
+
+	for (int y = gridStartY; y <= gridEndY; y += gridSpace)
+	{
+		glBegin(GL_LINES);
+			glVertex3f(gridStartX, y, 0);
+			glVertex3f(gridEndX, y, 0);
+		glEnd();
+	}
+}
 
 
 void SetUpFrame(GLFrame &frame,
@@ -215,7 +244,8 @@ void RenderScene(void) {
 	AnimateCamera();
 	UpdateMvp();
 
-	RenderGround();
+	RenderGrid();
+	//RenderGround();
 	RenderPyramid();
 
     glutSwapBuffers();
