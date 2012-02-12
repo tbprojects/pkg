@@ -11,28 +11,34 @@
 #endif
 
 
+// length of the pyramids base
 const float pyramidSideLength = 2;
 
+// screen dimensions
 GLint screenWidth = 800;
 GLint screenHeight = 600;
 
+// shader related variables
 GLuint shader;
 GLint MVPMatrixLocation;
 
+// view related objects
 GLFrame cameraFrame;
 GLFrustum viewFrustum;
+
+// helper matrices holding partial transformation results
+M3DMatrix44f modelViewProjectionMatrix;
+M3DMatrix44f viewProjectionMatrix;
+M3DMatrix44f cameraMatrix;
 
 // camera vars
 M3DVector3f cameraPosition = { 50.0, 1.0, 10.0 };
 M3DVector3f targetPosition =  { 0.0, 0.0, 0.0 };
 M3DVector3f cameraUp = { 0.0, 0.0, 1.0 };
+
+// camera animation
 float cameraAngle = 0.0f;
 CStopWatch timer; 
-
-double g_applicationRunningTime = 0.0f;
-float g_rotationSpeed = 1.0f;
-float g_pyramidRotationAngle = 0;
-
 
 float gridStartX = -10;
 float gridEndX = 10;
@@ -48,7 +54,7 @@ void RenderGround()
 	// ground
 	float groundSize = 3;
 	glBegin(GL_QUADS);
-		glVertexAttrib4f(GLT_ATTRIBUTE_COLOR, 0.0, 0.1, 0.25, 1.0);
+		glVertexAttrib4f(GLT_ATTRIBUTE_COLOR, 0.0f, 0.1f, 0.25f, 1.0f);
 		
 		glVertex3f(-groundSize, groundSize, 0.0f); 
 		glVertex3f(-groundSize, -groundSize, 0.0f);
@@ -110,15 +116,74 @@ void RenderPyramid()
 }
 
 
+void CopyViewProjectionMatrixToModelViewProjectionMatrix()
+{
+	for (int i = 0; i < 16; i++)
+	{
+		modelViewProjectionMatrix[i] = viewProjectionMatrix[i];
+	}
+}
+
+
+void RenderSingleTransformedPyramid(M3DVector3f translation, float rotationAngle, M3DVector3f rotationAxis, M3DVector3f scale)
+{
+	CopyViewProjectionMatrixToModelViewProjectionMatrix();
+	M3DMatrix44f modelMatrix;
+
+	if (translation != NULL)
+	{
+		m3dTranslationMatrix44(modelMatrix, translation[0], translation[1], translation[2]);
+		m3dMatrixMultiply44(modelViewProjectionMatrix, modelViewProjectionMatrix, modelMatrix);
+	}
+
+	if (rotationAxis != NULL)
+	{
+		m3dRotationMatrix44(modelMatrix, rotationAngle, rotationAxis[0], rotationAxis[1], rotationAxis[2]);
+		m3dMatrixMultiply44(modelViewProjectionMatrix, modelViewProjectionMatrix, modelMatrix);
+	}
+
+	if (scale != NULL)
+	{
+		m3dScaleMatrix44(modelMatrix, scale[0], scale[1], scale[2]);
+		m3dMatrixMultiply44(modelViewProjectionMatrix, modelViewProjectionMatrix, modelMatrix);
+	}
+
+	if (modelViewProjectionMatrix != NULL)
+	{
+		glUniformMatrix4fv(MVPMatrixLocation, 1, GL_FALSE, modelViewProjectionMatrix);
+
+	}
+
+	RenderPyramid();
+}
+
+
+void RenderPyramidsTransformed()
+{
+	// translated
+	M3DVector3f translationVector = { 5, 0, 0 };
+	RenderSingleTransformedPyramid( translationVector, 0, NULL, NULL );
+
+	// scaled
+	M3DVector3f scaleVector = { 1, 1, 3 };
+	RenderSingleTransformedPyramid( NULL, 0, NULL, scaleVector );
+
+	// rotated
+	translationVector[0] = -5;
+	M3DVector3f rotationAxisVector = { 0, 0, 1 };
+	RenderSingleTransformedPyramid( translationVector, 45, rotationAxisVector, NULL );
+}
+
+
 void RenderGrid()
 {
-	glVertexAttrib4f(GLT_ATTRIBUTE_COLOR, 0.9, 0.9, 0.9, 1.0);	
+	glVertexAttrib4f(GLT_ATTRIBUTE_COLOR, 0.9f, 0.9f, 0.9f, 1.0f);	
 
 	for (int x = gridStartX; x <= gridEndX; x += gridSpace)
 	{
 		glBegin(GL_LINES);
-			glVertex3f(x, gridStartY, 0);
-			glVertex3f(x, gridEndY, 0);
+			glVertex3f(x, gridStartY, 0.0f);
+			glVertex3f(x, gridEndY, 0.0f);
 		glEnd();
 	}	
 
@@ -147,6 +212,9 @@ void SetUpFrame(GLFrame &frame,
 	frame.SetUpVector(oUp);
 	
 	frame.Normalize();
+
+	// read view matrix to global variable for further use
+	cameraFrame.GetCameraMatrix(cameraMatrix, false);
 };
 
 
@@ -171,7 +239,6 @@ void UpdateCamera() {
 
 void AnimateCamera() 
 {	
-	//cameraAngle = timer.GetElapsedSeconds()*M_PI;
 	cameraAngle = timer.GetElapsedSeconds()*0.2;
 
 	cameraPosition[0]=6.8f*cos(cameraAngle);
@@ -221,18 +288,8 @@ void SetupRC() {
 }
 
 
-void UpdateMvp() {
-	// wczytujemy macierz kamery
-	M3DMatrix44f cameraMatrix;
-	cameraFrame.GetCameraMatrix(cameraMatrix, false);
-	
-	// obliczamy macierz Model-Widok-Rzutowanie
-	M3DMatrix44f mvpMatrix;
-	//m3dMatrixMultiply44(mvpMatrix, cameraMatrix, projectionMatrix);
-	m3dMatrixMultiply44(mvpMatrix, viewFrustum.GetProjectionMatrix(), cameraMatrix);	
-	
-	// przekazujemy macierz MVP do szadera
-	glUniformMatrix4fv(MVPMatrixLocation, 1, GL_FALSE, mvpMatrix);
+void UpdateViewProjectionMatrix() {	
+	m3dMatrixMultiply44(viewProjectionMatrix, viewFrustum.GetProjectionMatrix(), cameraMatrix);		
 }
 
 
@@ -242,15 +299,26 @@ void RenderScene(void) {
     glUseProgram(shader);
 
 	AnimateCamera();
-	UpdateMvp();
 
+	// calculate viewProjectionMatrix based on current camera state and frustum
+	UpdateViewProjectionMatrix();
+	
+	// send transformed viewProjectionMatrix to shader
+	glUniformMatrix4fv(MVPMatrixLocation, 1, GL_FALSE, viewProjectionMatrix);
+
+
+// ======= ACTUAL RENDERING =========	
 	RenderGrid();
-	//RenderGround();
-	RenderPyramid();
 
+	//RenderPyramid();
+	RenderPyramidsTransformed();
+	
+
+
+// ==== COMMIT RENDER TO SCREEN =====
     glutSwapBuffers();
 
-	// required for camera animation
+	// force refresh screen for camera animation to be visible
 	glutPostRedisplay();
 }
 
@@ -263,7 +331,6 @@ int main(int argc, char* argv[]) {
 	SetupViewFrustum(screenWidth, screenHeight);
 
     glutCreateWindow("Triangle");
-	//glutIdleFunc(Idle);
     glutReshapeFunc(ChangeSize);
     glutDisplayFunc(RenderScene);
 
