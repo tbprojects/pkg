@@ -1,0 +1,67 @@
+#version 330
+
+struct PointLight {
+    vec3  position; //in eye space !!
+    vec3  color;
+	float angle;
+    float attenuation0;
+    float attenuation1;
+    float attenuation2;    
+};
+
+struct MaterialProperties {
+    vec3  ambientColor;
+    vec3  diffuseColor;
+    vec3  specularColor;
+    float specularExponent;
+};
+
+
+uniform  mat4x4 mvpMatrix;
+uniform  mat4x4 mvMatrix;
+uniform  mat3x3 normalMatrix;
+
+uniform PointLight light1;
+
+uniform MaterialProperties material;
+
+in vec4 vVertex;
+in vec3 vNormal;   
+
+smooth out vec4 vVaryingColor;
+
+
+void main() {
+	vec4 vertexPositionInEyeSpace4 = mvMatrix*vVertex;
+	vec3 vertexPositionInEyeSpace3 = vertexPositionInEyeSpace4.xyz/vertexPositionInEyeSpace4.w;
+	vec3 normalInEyeSpace = normalMatrix*vNormal;
+	vec3 viewDirection = normalize(-vertexPositionInEyeSpace3);
+
+	vec3 lightVector = light1.position - vertexPositionInEyeSpace3;
+	vec3 lightDirection = normalize(lightVector);
+	float diffuseIntensity = max( 0.0f, dot(normalInEyeSpace, lightDirection));
+
+	float distanceToLight = length(lightVector);
+	float Ar = light1.attenuation0 + light1.attenuation1*distanceToLight + light1.attenuation2*distanceToLight*distanceToLight;
+	
+	vVaryingColor.rgb = material.diffuseColor*light1.color.xyz*diffuseIntensity*Ar; // + material.ambientColor;
+	vVaryingColor.a = 1.0;		
+	
+	
+	
+	// PHONG		
+	//vec3 reflectionDirection = reflect(-normalize(lightDirection), normalize(normalInEyeSpace));
+	//float specular = max(0.0, dot(reflectionDirection, normalize(viewDirection)));
+	
+	// BLINN-PHONG
+	vec3 halfwayDirection = lightDirection + viewDirection;
+	float specular = max(0.0, dot(normalInEyeSpace, normalize(halfwayDirection)));
+	
+	
+	if(diffuseIntensity != 0) {
+		float specularPower = pow(specular, material.specularExponent);
+		vVaryingColor.rgb += material.specularColor*specularPower*Ar;
+	}
+	
+	gl_Position = mvpMatrix * vVertex;
+}

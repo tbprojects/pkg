@@ -1,8 +1,12 @@
 #include <GLTools.h>            // OpenGL toolkit
+
 #include <GLFrame.h>
 #include <GLFrustum.h>
 #include <StopWatch.h>
 #include <GLMatrixStack.h>
+#include <GLGeometryTransform.h>
+
+
 
 #ifdef __APPLE__
 #include <glut/glut.h>          // OS X version of GLUT
@@ -11,9 +15,6 @@
 #include <glut.h>            // Windows FreeGlut equivalent
 #endif
 
-
-// length of the pyramids base
-const float pyramidSideLength = 2;
 
 // screen dimensions
 GLint screenWidth = 800;
@@ -41,11 +42,11 @@ M3DVector3f cameraUp = { 0.0, 0.0, 1.0 };
 float cameraAngle = 0.0f;
 CStopWatch timer; 
 
-float gridStartX = -10;
-float gridEndX = 10;
-float gridStartY = -10;
-float gridEndY = 10;
-float gridSpace = 1;
+const float gridStartX = -10;
+const float gridEndX = 10;
+const float gridStartY = -10;
+const float gridEndY = 10;
+const float gridSpace = 1;
 
 
 void RenderGround()
@@ -67,6 +68,9 @@ void RenderGround()
 
 void RenderPyramid() 
 {
+	// length of the pyramids base
+	const float pyramidSideLength = 2;
+
 	glFrontFace(GL_CCW);
 
 	// base
@@ -157,6 +161,7 @@ void RenderSingleTransformedPyramid(M3DVector3f translation, float rotationAngle
 	RenderPyramid();
 }
 
+
 void RenderSingleTransformedPyramidWithStack(M3DVector3f translation, float rotationAngle, M3DVector3f rotationAxis, M3DVector3f scale)
 {
 	GLMatrixStack matrixStack;
@@ -185,6 +190,31 @@ void RenderSingleTransformedPyramidWithStack(M3DVector3f translation, float rota
 	RenderPyramid();
 }
 
+
+void RenderSinglePyramidWithLight()
+{
+	//TODO: include modelView
+	GLGeometryTransform geometryPipeline;
+	geometryPipeline.SetMatrixStacks(cameraMatrix, viewFrustum.GetProjectionMatrix());
+
+	RenderPyramid();
+}
+
+
+void RenderTriangle(M3DVector3f a, M3DVector3f b, M3DVector3f c) {
+   M3DVector3f normal, bMa, cMa;
+   m3dSubtractVectors3(bMa, b, a);
+   m3dSubtractVectors3(cMa, c, a);
+   m3dCrossProduct3(normal, bMa, cMa);
+   m3dNormalizeVector3(normal);
+   glVertexAttrib3fv(GLT_ATTRIBUTE_NORMAL, normal);
+   glVertex3fv(a);
+   glVertex3fv(b);
+   glVertex3fv(c);
+}
+
+
+
 void RenderPyramidsTransformed()
 {
 	// translated
@@ -200,6 +230,7 @@ void RenderPyramidsTransformed()
 	M3DVector3f rotationAxisVector = { 0, 0, 1 };
 	RenderSingleTransformedPyramid( translationVector, 45, rotationAxisVector, NULL );
 }
+
 
 void RenderPyramidsTransformedWithStack()
 {
@@ -284,10 +315,10 @@ void AnimateCamera()
 {	
 	cameraAngle = timer.GetElapsedSeconds()*0.2;
 
-	cameraPosition[0]=6.8f*cos(cameraAngle);
-	cameraPosition[1]=6.8f*sin(cameraAngle);
-	cameraPosition[2]=5.0f; 
-	LookAt(cameraFrame, cameraPosition, targetPosition, cameraUp);
+	cameraPosition[0] = 6.8f*cos(cameraAngle);
+	cameraPosition[1] = 6.8f*sin(cameraAngle);
+	cameraPosition[2] = 5.0f; 
+	UpdateCamera();
 }
 
 
