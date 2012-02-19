@@ -1,0 +1,20 @@
+#version 330
+
+uniform  mat4x4 mvpMatrix;
+uniform  mat4x4 mvMatrix;
+uniform  mat3x3 normalMatrix;
+
+in vec4 vVertex;
+in vec3 vNormal;
+
+smooth out vec3  positionInEyeSpace3;
+smooth out vec3  normalInEyeSpace;
+
+
+void main() {
+	vec4 vertexPositionInEyeSpace4 = mvMatrix*vVertex;
+	positionInEyeSpace3 = vertexPositionInEyeSpace4.xyz/vertexPositionInEyeSpace4.w;
+	normalInEyeSpace = normalMatrix*vNormal;	
+	
+	gl_Position = mvpMatrix * vVertex;
+}
