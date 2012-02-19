@@ -272,34 +272,34 @@ void RenderGrid()
 }
 
 
-void SetUpFrame(GLFrame &frame,
+void SetUpFrame(GLFrame &cameraFrame,
 				const M3DVector3f origin,
 				const M3DVector3f forward,
 				const M3DVector3f up) {
 	
-	frame.SetOrigin(origin);
-	frame.SetForwardVector(forward);
+	cameraFrame.SetOrigin(origin);
+	cameraFrame.SetForwardVector(forward);
 	
 	M3DVector3f side, oUp;
 	m3dCrossProduct3(side, forward, up);
 	m3dCrossProduct3(oUp, side, forward);
-	frame.SetUpVector(oUp);
+	cameraFrame.SetUpVector(oUp);
 	
-	frame.Normalize();
+	cameraFrame.Normalize();
 
 	// read view matrix to global variable for further use
 	cameraFrame.GetCameraMatrix(cameraMatrix, false);
 };
 
 
-void LookAt(GLFrame &frame, 
+void LookAt(GLFrame &cameraFrame, 
 		const M3DVector3f eye,
         const M3DVector3f at,
         const M3DVector3f up) {
 
     M3DVector3f forward;
     m3dSubtractVectors3(forward, at, eye);
-    SetUpFrame(frame, eye, forward, up);
+    SetUpFrame(cameraFrame, eye, forward, up);
 }
 
 

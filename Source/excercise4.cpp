@@ -59,6 +59,98 @@ M3DVector3f materialSpecularColor = { 0.8f, 0.8f, 0.8f };
 float materialSpecularExponent = 10;
 
 
+GLuint vertex_buffer;
+GLuint faces_buffer;
+
+int n_faces;
+int n_vertices;
+
+void CreateVerticesBuffer() 
+{
+   int entriesPerVertex = 7;  
+
+   FILE *fvertices=fopen("geode_vertices.dat","r");
+   if(fvertices==NULL) {
+     fprintf(stderr,"cannot open vertices file for reading\n");
+     exit(-1);
+   }
+
+   n_vertices = 0;
+   char line[120];
+   float vertices[18585];
+   
+   while(fgets(line,120,fvertices)!=NULL) {
+	   float x,y,z;
+	   double norm;
+	   sscanf(line,"%f %f %f",&x,&y,&z);
+  
+	   norm=x*x+y*y+z*z;
+	   norm=sqrt(norm);
+	   
+	   vertices[n_vertices*entriesPerVertex]=x;
+	   vertices[n_vertices*entriesPerVertex+1] = y ;
+	   vertices[n_vertices*entriesPerVertex+2] = z;
+	   vertices[n_vertices*entriesPerVertex+3] = 1.0f;
+	   vertices[n_vertices*entriesPerVertex+4] = x/norm;
+	   vertices[n_vertices*entriesPerVertex+5] = y/norm;
+	   vertices[n_vertices*entriesPerVertex+6] = z/norm;
+
+	   n_vertices++;
+   }
+
+	glGenBuffers(1,&vertex_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+
+	glBufferData(GL_ARRAY_BUFFER,n_vertices*sizeof(float)*7,&vertices[0],GL_STATIC_DRAW);
+	if(glGetError()!=GL_NO_ERROR) {
+		fprintf(stderr,"error copying vertices\n");
+	}
+
+	glVertexAttribPointer(GLT_ATTRIBUTE_VERTEX,4,GL_FLOAT,GL_FALSE,sizeof(float)*7,(const GLvoid *)0);
+	glVertexAttribPointer(GLT_ATTRIBUTE_NORMAL,3,GL_FLOAT,GL_FALSE,sizeof(float)*7,(const GLvoid *)(4*sizeof(float)) );
+
+	glEnableVertexAttribArray(GLT_ATTRIBUTE_VERTEX);
+	glEnableVertexAttribArray(GLT_ATTRIBUTE_NORMAL);
+}
+
+void CreateFacesBuffer()
+{
+   int entriesPerFace = 3;
+   FILE *ffaces=fopen("geode_faces.dat","r");
+   if(ffaces==NULL) {
+	   fprintf(stderr,"cannot open faces file for reading\n");
+	   exit(-1);
+   }
+
+   n_faces = 0;
+   int faces[15360];
+   char line[120];
+   while(fgets(line,120,ffaces)!=NULL) {
+	   GLuint i,j,k;
+
+		if(3!=sscanf(line,"%u %u %u",&i,&j,&k)){
+			fprintf(stderr,"error reading faces\n"); 
+			exit(-1);
+		}
+
+	   faces[n_faces*entriesPerFace] = i;
+	   faces[n_faces*entriesPerFace+1] = j;
+	   faces[n_faces*entriesPerFace+2] = k;
+	   n_faces++;
+   }
+
+	glGenBuffers(1,&faces_buffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,faces_buffer);
+	if(glGetError()!=GL_NO_ERROR) {
+		fprintf(stderr,"faces_buffer invalid\n");
+	}
+
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER,n_faces*sizeof(GLuint)*3,&faces[0],GL_STATIC_DRAW);
+	if(glGetError()!=GL_NO_ERROR) {
+		fprintf(stderr,"error copying faces\n");
+	}
+}
+
 void SetUpFrame(GLFrame &cameraFrame,const M3DVector3f origin,
 				const M3DVector3f forward,
 				const M3DVector3f cameraUpDirection) {
@@ -108,6 +200,15 @@ void RenderPlane(float size)
 		glVertex3f(size, -size, 0.0f);
 		glVertex3f(size, size, 0.0f);
 	glEnd();
+}
+
+void RenderFigure()
+{
+	glCullFace(GL_CW);
+	LoadModelViewProjectionMatrixToShader();
+	glVertexAttrib4f(GLT_ATTRIBUTE_COLOR, 0.75f, 0.f, 0.f, 1.0f);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,faces_buffer);
+	glDrawElements(GL_TRIANGLES,3*n_faces,GL_UNSIGNED_INT,0);	
 }
 
 
@@ -367,6 +468,9 @@ void RenderScene(void)
 		materialDiffuseColor[2] = 0.0f;
 		PassGouraudDataToShader();	
 		glutSolidSphere(1, 20, 20);
+		// rysuj figurê
+		//RenderFigure();
+
 	modelViewMatrix.PopMatrix();
 
 	
@@ -380,6 +484,8 @@ void RenderScene(void)
 	// bring camera matrix back to top of the stack
 	modelViewMatrix.PopMatrix();
 	
+
+
     // perform the buffer swap to display back buffer
     glutSwapBuffers();
 	glutPostRedisplay();
@@ -410,7 +516,9 @@ void SetupRC()
 											 "vNormal");
 
 	fprintf(stdout, "GLT_ATTRIBUTE_VERTEX : %d\nGLT_ATTRIBUTE_COLOR : %d \n", GLT_ATTRIBUTE_VERTEX, GLT_ATTRIBUTE_COLOR);
-    
+
+	CreateVerticesBuffer();
+	CreateFacesBuffer();    
 	SetupGourard();
 }
 
