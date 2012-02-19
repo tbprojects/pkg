@@ -44,6 +44,8 @@ GLint materialDiffuseColorLocation;
 GLint materialSpecularColorLocation;
 GLint materialSpecularExponentLocation;
 
+GLuint *textureId = new GLuint[3];
+
 // Gouraud values
 M3DVector3f lightPosition = { 5.0f, 0.0f, 4.0f };
 M3DVector3f lightColor = { 1.0f, 1.0f, 0.75f };
@@ -54,8 +56,8 @@ float lightAttenuation2 = 0.005;
 
 M3DVector3f materialAmbientColor = { 0.075f, 0.075f, 0.075f };
 M3DVector3f materialDiffuseColor = { 0.0f, 0.0f, 0.9f };
-M3DVector3f materialSpecularColor = { 0.8f, 0.8f, 0.8f };
-float materialSpecularExponent = 10;
+M3DVector3f materialSpecularColor = { 0.2f, 0.2f, 0.2f };
+float materialSpecularExponent = 1000;
 
 
 void SetUpFrame(GLFrame &cameraFrame,const M3DVector3f origin,
@@ -95,18 +97,89 @@ void GetViewProjectionMatrix(float *viewProjectionMatrix)
 }
 
 
+void TriangleFace(M3DVector3f &a, M3DVector3f &b, M3DVector3f &c) {
+      M3DVector3f normal, bMa, cMa;
+      m3dSubtractVectors3(bMa, b, a);
+      m3dSubtractVectors3(cMa, c, a);
+      m3dCrossProduct3(normal, bMa, cMa);
+      m3dNormalizeVector3(normal);
+      glVertexAttrib3fv(GLT_ATTRIBUTE_NORMAL, normal);
+      //glVertex3fv(a);
+      //glVertex3fv(b);
+      //glVertex3fv(c);
+}
+
+
+void DrawTriangleFace(M3DVector3f a, M3DVector3f b, M3DVector3f c) {
+      M3DVector3f normal, bMa, cMa;
+      m3dSubtractVectors3(bMa, b, a);
+      m3dSubtractVectors3(cMa, c, a);
+      m3dCrossProduct3(normal, bMa, cMa);
+      m3dNormalizeVector3(normal);
+      glVertexAttrib3fv(GLT_ATTRIBUTE_NORMAL, normal);
+      glVertex3fv(a);
+      glVertex3fv(b);
+      glVertex3fv(c);
+}
+
+
 void RenderPlane(float size)
 {
-	glFrontFace(GL_CCW);
+	float uvSize = 40.0f;
 
+	glFrontFace(GL_CCW);
+	
+	M3DVector3f a1 = { size, size, 0.0f };
+	M3DVector3f b1 = { -size, size, 0.0f };
+	M3DVector3f c1 = { -size, -size, 0.0f };
+	TriangleFace( a1, b1, c1 );
+	glBegin(GL_TRIANGLES);
+		glVertexAttrib4f(GLT_ATTRIBUTE_COLOR, 0.75f, 0.75f, 0.75f, 1.0f);
+
+		glVertexAttrib2f(GLT_ATTRIBUTE_TEXTURE0, uvSize, uvSize);
+		glVertex3f(size, size, 0.0f);
+
+		glVertexAttrib2f(GLT_ATTRIBUTE_TEXTURE0, 0.0f, uvSize);
+		glVertex3f(-size, size, 0.0f);
+
+		glVertexAttrib2f(GLT_ATTRIBUTE_TEXTURE0, 0.0f, 0.0f);
+		glVertex3f(-size, -size, 0.0f);
+	glEnd();
+
+	M3DVector3f a2 = { -size, -size, 0.0f };
+	M3DVector3f b2 = { size, -size, 0.0f };
+	M3DVector3f c2 = { size, size, 0.0f };
+	TriangleFace( a2, b2, c2 );
+	glBegin(GL_TRIANGLES);
+		glVertexAttrib4f(GLT_ATTRIBUTE_COLOR, 0.75f, 0.75f, 0.75f, 1.0f);
+
+		glVertexAttrib2f(GLT_ATTRIBUTE_TEXTURE0, 0.0f, 0.0f);
+		glVertex3f(-size, -size, 0.0f);
+
+		glVertexAttrib2f(GLT_ATTRIBUTE_TEXTURE0, uvSize, 0.0f);
+		glVertex3f(size, -size, 0.0f);
+
+		glVertexAttrib2f(GLT_ATTRIBUTE_TEXTURE0, uvSize, uvSize);
+		glVertex3f(size, size, 0.0f);
+	glEnd();
+
+	/*
 	glBegin(GL_QUADS);
 		glVertexAttrib4f(GLT_ATTRIBUTE_COLOR, 0.75f, 0.75f, 0.75f, 1.0f);
 
-		glVertex3f(-size, size, 0.0f); 
+		glVertexAttrib2f(GLT_ATTRIBUTE_TEXTURE0, 0.0f, 0.0f);
+		glVertex3f(-size, size, 0.0f);
+
+		glVertexAttrib2f(GLT_ATTRIBUTE_TEXTURE0, 1.0f, 0.0f);
 		glVertex3f(-size, -size, 0.0f);
+
+		glVertexAttrib2f(GLT_ATTRIBUTE_TEXTURE0, 1.0f, 1.0f);
 		glVertex3f(size, -size, 0.0f);
+
+		glVertexAttrib2f(GLT_ATTRIBUTE_TEXTURE0, 0.0f, 1.0f);
 		glVertex3f(size, size, 0.0f);
 	glEnd();
+	*/
 }
 
 
@@ -195,26 +268,14 @@ void PassGouraudDataToShader()
 }
 
 
-void TriangleFace(M3DVector3f a, M3DVector3f b, M3DVector3f c) {
-      M3DVector3f normal, bMa, cMa;
-      m3dSubtractVectors3(bMa, b, a);
-      m3dSubtractVectors3(cMa, c, a);
-      m3dCrossProduct3(normal, bMa, cMa);
-      m3dNormalizeVector3(normal);
-      glVertexAttrib3fv(GLT_ATTRIBUTE_NORMAL, normal);
-      glVertex3fv(a);
-      glVertex3fv(b);
-      glVertex3fv(c);
-}
-
-
 void drawTriangles(int n_faces, float *vertices, int *faces) {
       for (int i = 0; i < n_faces; i++) {
       glBegin(GL_TRIANGLES);
-      TriangleFace(vertices + 3 * faces[3 * i], vertices + 3 * faces[3 * i + 1], vertices + 3 * faces[3 * i + 2]);
+      DrawTriangleFace(vertices + 3 * faces[3 * i], vertices + 3 * faces[3 * i + 1], vertices + 3 * faces[3 * i + 2]);
       glEnd();
       }
 }
+
  
 void drawSmoothTriangles(int n_faces, float *vertices, int *faces) {
       M3DVector3f normal;
@@ -329,12 +390,16 @@ void RenderScene(void)
 	cameraFrame.GetCameraMatrix(cameraMatrix);	
 	modelViewMatrix.PushMatrix(cameraMatrix);	
 
+
 	
+
+	glBindTexture(GL_TEXTURE_2D, textureId[0]);
 	modelViewMatrix.PushMatrix();
-		modelViewMatrix.Translate(0.0f, 0.0f, -10.0f);
+		//modelViewMatrix.Translate(0.0f, 0.0f, -10.0f);
 		materialDiffuseColor[0] = materialDiffuseColor[1] = materialDiffuseColor[2] = 0.9f;
 		PassGouraudDataToShader();	
-		glutSolidCube(20);
+		RenderPlane(20);
+		//glutSolidCube(20);
 	modelViewMatrix.PopMatrix();
 
 	modelViewMatrix.PushMatrix();
@@ -400,17 +465,34 @@ void SetupRC()
 
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 
-    shader = gltLoadShaderPairWithAttributes("per_pixel_phong.vp", 
-											 "per_pixel_phong.fp",
+    shader = gltLoadShaderPairWithAttributes("per_pixel_phong_texture.vp", 
+											 "per_pixel_phong_texture.fp",
 											 2, 
-											 GLT_ATTRIBUTE_VERTEX, 
-											 "vVertex", 
-											 GLT_ATTRIBUTE_NORMAL, 
-											 "vNormal");
+											 GLT_ATTRIBUTE_VERTEX, "vVertex", 
+											 GLT_ATTRIBUTE_COLOR, "vColor",
+											 GLT_ATTRIBUTE_TEXTURE0, "texCoord0",
+											 GLT_ATTRIBUTE_NORMAL, "vNormal");
 
 	fprintf(stdout, "GLT_ATTRIBUTE_VERTEX : %d\nGLT_ATTRIBUTE_COLOR : %d \n", GLT_ATTRIBUTE_VERTEX, GLT_ATTRIBUTE_COLOR);
-    
+	   
 	SetupGourard();
+
+	glUniform1i(glGetUniformLocation(shader, "texture0"), 0);
+
+	glGenTextures(3, textureId);
+
+	int width, height, components;
+	GLenum format;
+
+	GLbyte *pixels;
+	pixels = gltReadTGABits("smiley.tga", &width, &height, &components, &format);
+
+	glBindTexture(GL_TEXTURE_2D, textureId[0]);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, components, width, height, 0, format, GL_UNSIGNED_BYTE, pixels);
 }
 
 
