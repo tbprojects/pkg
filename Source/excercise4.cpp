@@ -468,8 +468,6 @@ void RenderScene(void)
 		materialDiffuseColor[2] = 0.0f;
 		PassGouraudDataToShader();	
 		glutSolidSphere(1, 20, 20);
-		// rysuj figurê
-		//RenderFigure();
 
 	modelViewMatrix.PopMatrix();
 
